@@ -22,6 +22,7 @@
         {
           default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
+              bacon # `cargo-watch` alternative
               sqlx-cli
             ];
           };

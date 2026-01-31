@@ -5,6 +5,7 @@ dictionaries: []
 words:
   - alaya
   - apalis
+  - clippy
   - direnv
   - dotenv
   - fsrs
@@ -16,7 +17,9 @@ words:
   - paradedb
   - pgvector
   - pkgs
+  - pkill
   - plast
+  - prefs
   - rustc
   - rustls
   - sqlx
