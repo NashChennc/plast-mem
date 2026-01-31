@@ -13,6 +13,7 @@ words:
   - msvc
   - nemori
   - nixpkgs
+  - paradedb
   - pgvector
   - pkgs
   - plast

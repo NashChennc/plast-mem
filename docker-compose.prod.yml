@@ -1,0 +1,11 @@
+services:
+  plast-mem:
+    image: ghcr.io/moeru-ai/plast-mem:latest
+    container_name: plast-mem
+    restart: always
+    environment:
+      - DATABASE_URL= # TODO: from env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - plast-mem-db
