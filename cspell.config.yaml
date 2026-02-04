@@ -22,6 +22,7 @@ words:
   - prefs
   - rustc
   - rustls
+  - serde
   - sqlx
   - uuidv
   - vchord

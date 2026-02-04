@@ -4,6 +4,8 @@ use axum::{Router, extract::State, response::Html, routing::get};
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::net::TcpListener;
 
+mod core;
+
 mod utils;
 use utils::{AppError, shutdown_signal};
 
