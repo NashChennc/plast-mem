@@ -25,6 +25,7 @@ words:
   - prefs
   - rustc
   - rustls
+  - seaql
   - serde
   - sqlx
   - uuidv

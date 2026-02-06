@@ -50,4 +50,4 @@ db_migration *args='up':
 
 # generate entities from database.
 db_schema: (db_migration 'up')
-  sea-orm-cli generate entity -l -o crates/db_schema/src -u $DATABASE_URL
+  sea-orm-cli generate entity -l -o crates/db_schema/src -u $DATABASE_URL --ignore-tables seaql_migrations,spatial_ref_sys
