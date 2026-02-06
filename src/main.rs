@@ -7,7 +7,6 @@ use tokio::net::TcpListener;
 
 mod api;
 mod core;
-mod services;
 mod state;
 mod utils;
 
