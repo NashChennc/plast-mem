@@ -1,6 +1,6 @@
 use async_openai::types::{
-  ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-  ChatCompletionRequestUserMessageArgs,
+  ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+  ChatCompletionRequestUserMessage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -39,13 +39,9 @@ fn format_input_messages(messages: &[InputMessage]) -> String {
 }
 
 pub async fn summarize_messages(messages: &[InputMessage]) -> Result<String, AppError> {
-  let system = ChatCompletionRequestSystemMessageArgs::default()
-    .content("Provide a clear and concise summary")
-    .build()?;
+  let system = ChatCompletionRequestSystemMessage::from("Provide a clear and concise summary");
 
-  let user = ChatCompletionRequestUserMessageArgs::default()
-    .content(format_input_messages(messages))
-    .build()?;
+  let user = ChatCompletionRequestUserMessage::from(format_input_messages(messages));
 
   generate_text(vec![
     ChatCompletionRequestMessage::System(system),
@@ -58,19 +54,15 @@ pub async fn decide_split(
   recent: &[InputMessage],
   incoming: &InputMessage,
 ) -> Result<bool, AppError> {
-  let system = ChatCompletionRequestSystemMessageArgs::default()
-    .content(
-      "Decide whether the incoming message starts a new topic. Reply with 'split' or 'nosplit'.",
-    )
-    .build()?;
+  let system = ChatCompletionRequestSystemMessage::from(
+    "Decide whether the incoming message starts a new topic. Reply with 'split' or 'nosplit'.",
+  );
 
-  let user = ChatCompletionRequestUserMessageArgs::default()
-    .content(format!(
-      "Recent:\n{}\n\nIncoming:\n{}",
-      format_input_messages(recent),
-      format_input_messages(std::slice::from_ref(incoming))
-    ))
-    .build()?;
+  let user = ChatCompletionRequestUserMessage::from(format!(
+    "Recent:\n{}\n\nIncoming:\n{}",
+    format_input_messages(recent),
+    format_input_messages(std::slice::from_ref(incoming))
+  ));
 
   let text = generate_text(vec![
     ChatCompletionRequestMessage::System(system),
