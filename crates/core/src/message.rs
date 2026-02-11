@@ -14,3 +14,13 @@ pub struct Message {
   pub content: String,
   pub timestamp: DateTime<Utc>,
 }
+
+// impl Message {
+//   pub fn is_user(&self) -> bool {
+//     matches!(self.role, MessageRole::User)
+//   }
+
+//   pub fn is_assistant(&self) -> bool {
+//     matches!(self.role, MessageRole::Assistant)
+//   }
+// }

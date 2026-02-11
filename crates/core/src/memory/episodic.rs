@@ -55,8 +55,8 @@ impl EpisodicMemory {
       embedding,
       start_at,
       end_at,
-      created_at: now.clone(),
-      last_reviewed_at: now.clone(),
+      created_at: now,
+      last_reviewed_at: now,
     })
   }
 
