@@ -30,6 +30,7 @@ words:
   - retrievability
   - rustc
   - rustls
+  - schemars
   - seaql
   - serde
   - sqlx

@@ -7,6 +7,9 @@ use plast_mem_shared::{AppError, Message, MessageRole};
 mod embed;
 pub use embed::embed;
 
+mod generate_object;
+pub use generate_object::generate_object;
+
 mod generate_text;
 pub use generate_text::generate_text;
 
