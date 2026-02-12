@@ -25,6 +25,10 @@ pub async fn retrieve_memory(
   State(state): State<AppState>,
   Json(payload): Json<RetrieveMemory>,
 ) -> Result<Json<Vec<RetrieveMemoryResult>>, AppError> {
+  if payload.query.is_empty() {
+    return Err(AppError::new(anyhow::anyhow!("Query cannot be empty")));
+  }
+
   let results = EpisodicMemory::retrieve(&payload.query, 5, &state.db).await?;
 
   // Push review job to update FSRS parameters asynchronously

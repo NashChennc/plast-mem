@@ -31,6 +31,10 @@ pub async fn add_message(
   State(state): State<AppState>,
   Json(payload): Json<AddMessage>,
 ) -> Result<StatusCode, AppError> {
+  if payload.message.content.is_empty() {
+    return Err(AppError::new(anyhow::anyhow!("Message content cannot be empty")));
+  }
+
   let timestamp = payload.message.timestamp.unwrap_or_else(Utc::now);
 
   let message = Message {
