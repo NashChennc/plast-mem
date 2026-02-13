@@ -13,8 +13,6 @@ When working on Plast Mem, follow this decision tree to navigate the codebase an
 **First, understand what type of change you're making:**
 - Is it a refactor/new feature? → Check docs/ARCHITECTURE.md for design principles
 - Is it a bug fix? → Read relevant crate README.md files
-- Is it about FSRS/retrieval/review? → Start with docs/architecture/fsrs.md and the current flow in `crates/core/src/memory/episodic.rs` and `crates/worker/src/jobs/memory_review.rs`
-- Is it about surprise detection? → Start with `crates/ai/src/lib.rs`
 
 ### 2. Understanding Change Impact
 
@@ -22,7 +20,6 @@ When working on Plast Mem, follow this decision tree to navigate the codebase an
 
 1. **Read the crate's README.md** to understand responsibilities
 2. **Check docs/ARCHITECTURE.md** for layer dependencies
-3. **Review docs/CHANGE_GUIDE.md** for similar past changes
 
 ### 3. Quick Component Summary
 
