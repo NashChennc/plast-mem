@@ -80,3 +80,4 @@ HTTP server and API handlers
 
 - [Segmentation](architecture/segmentation.md) - Segmenter Based on Rule and Event Segmentation Theory
 - [FSRS](architecture/fsrs.md) - Integration with FSRS (Free Spaced Repetition Scheduler)
+- [Memory Retrieval](architecture/retrieve_memory.md) - Retrieve Memory API documentation
