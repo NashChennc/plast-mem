@@ -46,8 +46,8 @@ db *args='migration up':
 
 # apply migrations to database.
 db_migration *args='up':
-  sea-orm-cli migrate {{args}} -d crates/db_migration -u $DATABASE_URL
+  sea-orm-cli migrate {{args}} -d crates/migration -u $DATABASE_URL
 
 # generate entities from database.
-db_schema: (db_migration 'up')
-  sea-orm-cli generate entity -l -o crates/db_schema/src -u $DATABASE_URL --ignore-tables seaql_migrations,spatial_ref_sys
+db_generate: (db_migration 'up')
+  sea-orm-cli generate entity -l -o crates/entities/src -u $DATABASE_URL --ignore-tables seaql_migrations,spatial_ref_sys
