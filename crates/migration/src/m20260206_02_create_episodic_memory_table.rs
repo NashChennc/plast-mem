@@ -23,10 +23,8 @@ impl MigrationTrait for Migration {
           // FSRS Memory State
           .col(float(EpisodicMemory::Stability))
           .col(float(EpisodicMemory::Difficulty))
-          // Event Segmentation
+          // Surprise for initial stability and display
           .col(float(EpisodicMemory::Surprise))
-          .col(string(EpisodicMemory::BoundaryType))
-          .col(float(EpisodicMemory::BoundaryStrength))
           // Timestamps
           .col(timestamp_with_time_zone(EpisodicMemory::StartAt))
           .col(timestamp_with_time_zone(EpisodicMemory::EndAt))
@@ -42,17 +40,6 @@ impl MigrationTrait for Migration {
         manager.get_database_backend(),
         "CREATE INDEX cosine_index ON episodic_memory USING hnsw (embedding vector_cosine_ops);",
       ))
-      .await?;
-
-    manager
-      .create_index(
-        Index::create()
-          .name("idx_episodic_boundary")
-          .table(EpisodicMemory::Table)
-          .col(EpisodicMemory::BoundaryType)
-          .col(EpisodicMemory::BoundaryStrength)
-          .to_owned(),
-      )
       .await?;
 
     Ok(())
@@ -85,10 +72,8 @@ pub enum EpisodicMemory {
   Stability,
   Difficulty,
 
-  // Event Segmentation
+  // Surprise for initial stability and display
   Surprise,
-  BoundaryType,
-  BoundaryStrength,
 
   // earliest message timestamp
   StartAt,

@@ -50,7 +50,6 @@ pub async fn add_message(
         conversation_id: payload.conversation_id,
         messages: check.messages,
         check: check.check,
-        boundary_hint: check.boundary_hint,
       })
       .await?;
   }

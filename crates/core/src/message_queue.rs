@@ -3,7 +3,6 @@ use chrono::TimeDelta;
 use plastmem_entities::message_queue;
 use plastmem_shared::AppError;
 
-use crate::BoundaryType;
 use sea_orm::{
   ColumnTrait, DatabaseConnection, EntityTrait, ExprTrait, QueryFilter, Set,
   prelude::Expr,
@@ -25,9 +24,6 @@ pub struct MessageQueue {
 pub struct SegmentationCheck {
   pub messages: Vec<Message>,
   pub check: bool,
-  /// Pre-determined boundary type from rule-based detection (e.g. TemporalGap).
-  /// When None, the LLM will determine the boundary type.
-  pub boundary_hint: Option<BoundaryType>,
 }
 
 impl MessageQueue {
@@ -122,7 +118,6 @@ impl MessageQueue {
         return Ok(Some(SegmentationCheck {
           messages: messages.clone(),
           check: false,
-          boundary_hint: None,
         }));
       }
       _ => {}
@@ -136,7 +131,6 @@ impl MessageQueue {
       return Ok(Some(SegmentationCheck {
         messages: messages.clone(),
         check: false,
-        boundary_hint: Some(BoundaryType::TemporalGap),
       }));
     }
 
@@ -149,7 +143,6 @@ impl MessageQueue {
     Ok(Some(SegmentationCheck {
       messages: messages.clone(),
       check: true,
-      boundary_hint: None,
     }))
   }
 

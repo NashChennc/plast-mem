@@ -33,8 +33,6 @@ pub struct EventSegmentationOutput {
   /// Prediction error / surprise score (0.0 ~ 1.0)
   /// 0 = fully expected, 1 = complete surprise
   pub surprise: f32,
-  /// Why segmentation occurred: "ContentShift", "GoalCompletion", or "PredictionError"
-  pub boundary_type: String,
 }
 
 const SEGMENT_SYSTEM_CHECK: &str = "\
@@ -51,12 +49,7 @@ You are an event segmentation analyzer. Analyze the conversation and produce a s
    - 0.0 = fully expected, no new information
    - 0.3 = minor information gain
    - 0.7 = significant pivot or revelation
-   - 1.0 = complete surprise, model-breaking
-
-4. **boundary_type**: Categorize why this segment is distinct:
-   - \"ContentShift\" = topic or subject matter changed
-   - \"GoalCompletion\" = task, goal, or intention completed
-   - \"PredictionError\" = unexpected event, surprise > 0.7";
+   - 1.0 = complete surprise, model-breaking";
 
 const SEGMENT_SYSTEM_FORCE: &str = "\
 You are an event segmentation analyzer. This conversation segment must be summarized (no skipping). Produce a structured assessment.
@@ -69,19 +62,14 @@ You are an event segmentation analyzer. This conversation segment must be summar
    - 0.0 = fully expected, no new information
    - 0.3 = minor information gain
    - 0.7 = significant pivot or revelation
-   - 1.0 = complete surprise, model-breaking
-
-4. **boundary_type**: Categorize why this segment is distinct:
-   - \"ContentShift\" = topic or subject matter changed
-   - \"GoalCompletion\" = task, goal, or intention completed
-   - \"PredictionError\" = unexpected event, surprise > 0.7";
+   - 1.0 = complete surprise, model-breaking";
 
 /// Analyzes messages for event segmentation using structured output.
 ///
 /// When `check` is true, the LLM may return action="skip" for trivial content.
 /// When `check` is false, the LLM always creates a summary.
 ///
-/// Returns surprise score and boundary type alongside the action/summary.
+/// Returns surprise score alongside the action/summary.
 pub async fn segment_events(
   messages: &[Message],
   check: bool,

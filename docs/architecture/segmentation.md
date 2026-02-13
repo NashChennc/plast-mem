@@ -5,8 +5,8 @@ Plast Mem first attempts rule-based matching and falls back to an LLM-based even
 ## Rules
 
 - If the number of messages is less than five, do not split.
-- If there are thirty or more messages, split (boundary_hint = None, LLM determines type).
-- If the latest message is more than fifteen minutes after the previous one, split (boundary_hint = TemporalGap).
+- If there are thirty or more messages, split.
+- If the latest message is more than fifteen minutes after the previous one, split.
 - If the latest message is five characters or fewer, do not split.
 
 This can reduce some LLM calls.
@@ -19,14 +19,6 @@ The LLM returns:
 - **action**: "create" or "skip" (when check=true; always "create" when check=false)
 - **summary**: concise summary of the conversation
 - **surprise**: prediction error score (0.0 ~ 1.0)
-- **boundary_type**: "ContentShift", "GoalCompletion", or "PredictionError"
-
-## Boundary Type Resolution
-
-The final boundary type is determined by priority:
-1. If rule-based detection set a boundary_hint (e.g. TemporalGap), use it
-2. If surprise > 0.7, override to PredictionError
-3. Otherwise, use the LLM's boundary_type
 
 ## Surprise-Based FSRS Boost
 

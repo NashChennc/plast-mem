@@ -4,7 +4,7 @@ use apalis::prelude::Data;
 use chrono::Utc;
 use fsrs::{DEFAULT_PARAMETERS, FSRS};
 use plastmem_ai::{embed, segment_events};
-use plastmem_core::{BoundaryType, EpisodicMemory, Message, MessageQueue};
+use plastmem_core::{EpisodicMemory, Message, MessageQueue};
 use plastmem_entities::episodic_memory;
 use plastmem_shared::{AppError, fsrs::DESIRED_RETENTION};
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -14,14 +14,11 @@ use uuid::Uuid;
 /// Job for event segmentation with LLM analysis.
 /// - If `check` is true: LLM decides whether to create memory
 /// - If `check` is false: LLM always creates memory (forced split)
-/// - `boundary_hint`: pre-determined boundary type from rule-based detection
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EventSegmentationJob {
   pub conversation_id: Uuid,
   pub messages: Vec<Message>,
   pub check: bool,
-  /// Pre-determined boundary type from rule-based detection.
-  pub boundary_hint: Option<BoundaryType>,
 }
 
 pub async fn process_event_segmentation(
@@ -64,20 +61,6 @@ pub async fn process_event_segmentation(
 
   let surprise = output.surprise.clamp(0.0, 1.0);
 
-  // Determine final boundary type:
-  // 1. If boundary_hint is set (e.g. TemporalGap from rule-based), use it
-  // 2. If surprise > 0.7, override to PredictionError
-  // 3. Otherwise, use LLM's boundary_type
-  let boundary_type = if let Some(hint) = job.boundary_hint {
-    hint
-  } else if surprise > 0.7 {
-    BoundaryType::PredictionError
-  } else {
-    output.boundary_type.parse::<BoundaryType>()?
-  };
-
-  let boundary_strength = surprise;
-
   // Generate embedding for the summary
   let embedding = embed(&summary).await?;
 
@@ -93,7 +76,8 @@ pub async fn process_event_segmentation(
   let initial_memory = initial_states.good.memory;
   let boosted_stability = initial_memory.stability * (1.0 + surprise * 0.5);
 
-  // Create EpisodicMemory with FSRS initial state + boundary context
+  // Create EpisodicMemory with FSRS initial state
+  // Surprise affects initial stability (higher surprise = longer retention)
   let episodic_memory = EpisodicMemory {
     id,
     conversation_id: job.conversation_id,
@@ -103,8 +87,6 @@ pub async fn process_event_segmentation(
     stability: boosted_stability,
     difficulty: initial_memory.difficulty,
     surprise,
-    boundary_type,
-    boundary_strength,
     start_at,
     end_at,
     created_at: now,

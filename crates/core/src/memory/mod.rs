@@ -1,6 +1,3 @@
-mod boundary;
-pub use boundary::BoundaryType;
-
 mod episodic;
 pub use episodic::EpisodicMemory;
 

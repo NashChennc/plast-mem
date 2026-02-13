@@ -175,11 +175,9 @@ CREATE INDEX idx_semantic_triple ON semantic_memory(entity, relation);
 ## Implementation Phases
 
 1. **Phase 1**: Add `surprise` field to EpisodicMemory
-2. **Phase 2**: Add `BoundaryType` and `BoundaryContext` to EpisodicMemory
-3. **Phase 3**: Implement SemanticMemory table and extraction job
-4. **Phase 4**: Integrate unified retrieval with query classification
+2. **Phase 2**: Implement SemanticMemory table and extraction job
+3. **Phase 3**: Integrate unified retrieval with query classification
 
 ## Dependencies
 
 - `docs/todo/surprise.md`: Surprise detection for extraction triggering
-- `docs/todo/boundary_types.md`: Boundary context for source memory selection

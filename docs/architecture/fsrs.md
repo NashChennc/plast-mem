@@ -12,16 +12,11 @@ New memories are initialized with **high retrievability but low stability**, mea
 
 ## Reranking
 
-Each memory retrieval first searches 100 candidates via BM25 + vector (RRF), then applies two multipliers:
+Each memory retrieval first searches 100 candidates via BM25 + vector (RRF), then applies the FSRS retrievability multiplier:
 
-1. **FSRS retrievability** — how likely the memory is to be recalled
-2. **Boundary boost** — weight based on boundary type:
-   - PredictionError: 1.3 + 0.2 × surprise (highest)
-   - GoalCompletion: 1.2
-   - ContentShift: 1.0 (neutral)
-   - TemporalGap: 0.9 (reduced)
-
-Final score: `rrf_score × retrievability × boundary_boost`
+```
+final_score = rrf_score × retrievability
+```
 
 The top `limit` items are returned.
 

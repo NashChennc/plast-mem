@@ -20,8 +20,7 @@ Core structure
 
 **Key Components**:
 - `memory/`: Various types of memory
-  - `episodic.rs`: Episodic Memory (hybrid retrieval with FSRS + boundary boost re-ranking)
-  - `boundary.rs`: Boundary Type enum and retrieval boost logic
+  - `episodic.rs`: Episodic Memory (hybrid retrieval with FSRS re-ranking)
 - `message_queue.rs`: Message Queue (rule-based segmentation triggers)
 
 ### 3. plastmem_migration
@@ -62,7 +61,7 @@ Reusable utilities
 Background tasks worker
 
 **Key Components**:
-- `event_segmentation.rs`: Creates episodic memories with surprise + boundary type
+- `event_segmentation.rs`: Creates episodic memories with surprise-based FSRS initialization
 - `memory_review.rs`: Updates FSRS parameters on retrieval
 
 ## Further Reading
