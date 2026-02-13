@@ -2,14 +2,9 @@ use apalis_postgres::PostgresStorage;
 use plastmem_migration::{Migrator, MigratorTrait};
 use plastmem_shared::{APP_ENV, AppError};
 use plastmem_worker::{EventSegmentationJob, MemoryReviewJob, worker};
+use plastmem_server::server;
 use sea_orm::Database;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-mod api;
-mod server;
-mod utils;
-
-use crate::server::server;
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {

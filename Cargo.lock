@@ -3537,26 +3537,14 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 name = "plastmem"
 version = "0.0.1"
 dependencies = [
- "anyhow",
- "apalis",
  "apalis-postgres",
- "axum",
- "chrono",
- "dotenvy",
- "fsrs",
- "plastmem_ai",
- "plastmem_core",
- "plastmem_entities",
  "plastmem_migration",
+ "plastmem_server",
  "plastmem_shared",
  "plastmem_worker",
  "sea-orm",
- "serde",
- "serde_json",
  "tokio",
- "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -3604,6 +3592,25 @@ version = "0.0.1"
 dependencies = [
  "sea-orm-migration",
  "tokio",
+]
+
+[[package]]
+name = "plastmem_server"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "apalis",
+ "apalis-postgres",
+ "axum",
+ "chrono",
+ "plastmem_core",
+ "plastmem_shared",
+ "plastmem_worker",
+ "sea-orm",
+ "serde",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
