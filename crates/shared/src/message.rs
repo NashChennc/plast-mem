@@ -13,8 +13,8 @@ pub enum MessageRole {
 impl fmt::Display for MessageRole {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      MessageRole::User => write!(f, "user"),
-      MessageRole::Assistant => write!(f, "assistant"),
+      MessageRole::User => write!(f, "User"),
+      MessageRole::Assistant => write!(f, "Assistant"),
     }
   }
 }
@@ -24,6 +24,12 @@ pub struct Message {
   pub role: MessageRole,
   pub content: String,
   pub timestamp: DateTime<Utc>,
+}
+
+impl ToString for Message {
+  fn to_string(&self) -> String {
+    format!("{}: {}\n", self.role, self.content)
+  }
 }
 
 // impl Message {
