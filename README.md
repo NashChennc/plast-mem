@@ -4,7 +4,7 @@ Yet Another Memory Layer, inspired by Cognitive Science, designed for Cyber Waif
 
 ## Core Design
 
-These are the design goals for Plast Mem, some of which may not yet have been implemented.
+These are the design goals for Plast Mem, some of which may not yet been implemented. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for implementation details.
 
 ### Self-hosted first
 
@@ -13,19 +13,23 @@ Plast Mem is built around self-hosting and does not try to steer you towards a w
 Written in Rust, it is packaged as a single binary (or Docker image)
 and requires only a connection to an LLM service (such as [llama.cpp](https://github.com/ggml-org/llama.cpp)) and a [ParadeDB](https://github.com/paradedb/paradedb) database to work.
 
-<!-- ### Event Segmentation Theory -->
+### Event Segmentation Theory
 
-### FSRS
+Conversations flow continuously, but human memory segments them into discrete episodes.
+Plast Mem uses [Event Segmentation Theory](https://en.wikipedia.org/wiki/Psychology_of_film#Segmentation) to detect natural boundaries—topic shifts, time gaps, or message accumulation—and creates episodic memories at these boundaries.
+
+### FSRS with LLM Review
 
 By introducing [FSRS (Free Spaced Repetition Scheduler)](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm), we can determine when a memory should be forgotten.
 
-After the memory has been retrieved, a separate reviewer scores the dialogue and updates the memory state.
+Retrieval records candidate memories for review; when the conversation is later segmented,
+An LLM evaluates each memory's relevance (Again/Hard/Good/Easy) and updates FSRS parameters accordingly.
 
 ## FAQ
 
 ### What is the current status of this project?
 
-We have not yet released version 0.0.1 because the core functionality is incomplete. However, you are welcome to join us in developing it!
+We have not yet released version 0.0.1 because the core functionality is incomplete. However, you are welcome to join us in developing it! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 #### Roadmap
 
