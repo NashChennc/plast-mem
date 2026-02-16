@@ -17,7 +17,8 @@ words:
   - msvc
   - nemori
   - nixpkgs
-  - Oper
+  - ollama
+  - oper
   - paradedb
   - pgvector
   - pkgs
