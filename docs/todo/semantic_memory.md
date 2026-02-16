@@ -1,6 +1,6 @@
 # Semantic Memory (TODO)
 
-Semantic Memory extracts abstract facts from concrete episodic events. While Episodic Memory stores "what happened," Semantic Memory stores "what is true."
+Semantic Memory extracts abstract facts from concrete episodic events. While Episodic Memory stores "what happened," Semantic Memory stores "what is true" — including facts about the user and facts about "us" (the relationship).
 
 ## Comparison
 
@@ -37,6 +37,7 @@ pub struct SemanticMemory {
 }
 
 pub enum RelationType {
+    // User facts
     IsA,
     HasProperty,
     RelatedTo,
@@ -44,8 +45,40 @@ pub enum RelationType {
     Causes,
     UsedFor,
     Prefers,       // User preference ("User PREFERS dark mode")
+
+    // Relationship facts
+    Needs,         // Emotional needs ("User NEEDS to be heard")
+    Avoids,        // Topics to avoid ("User AVOIDS talking about ex")
+    Pattern,       // Interaction patterns ("We PATTERN joke-then-laugh")
+
     Contradicts,   // For conflict detection
 }
+```
+
+## Two Types of Facts
+
+### 1. User Facts
+Traditional knowledge about the user:
+```
+entity: "User", relation: "IsA", target: "backend engineer"
+entity: "User", relation: "HasProperty", target: "3 years Rust experience"
+entity: "User", relation: "Prefers", target: "concise answers"
+```
+
+### 2. Relationship Facts
+Facts about "us" — the ongoing relationship:
+```
+// Emotional needs
+entity: "User", relation: "Needs", target: "validation before advice"
+entity: "User", relation: "Needs", target: "space when angry"
+
+// Topics to avoid
+entity: "User", relation: "Avoids", target: "discussing salary"
+
+// Interaction patterns ("Our Rhythm")
+entity: "We", relation: "Pattern", target: "late night deep talks"
+entity: "We", relation: "Pattern", target: "teasing each other playfully"
+entity: "We", relation: "Pattern", target: "he vents first, I listen"
 ```
 
 ## Extraction Pipeline
@@ -87,19 +120,27 @@ pub async fn extract_from_episodic(
 
 ```
 Extract knowledge triples from the following conversation episode.
-Focus on persistent facts, preferences, and relationships — NOT transient events.
+Focus on persistent facts, preferences, and relationship patterns — NOT transient events.
 
 Format (structured output):
-- entity: The subject (e.g., "User", "Rust", "User's job")
-- relation: One of IS_A, HAS_PROPERTY, RELATED_TO, PART_OF, CAUSES, USED_FOR, PREFERS
+- entity: The subject (e.g., "User", "We", "User's job")
+- relation: One of IS_A, HAS_PROPERTY, RELATED_TO, PART_OF, CAUSES, USED_FOR,
+            PREFERS, NEEDS, AVOIDS, PATTERN
 - target: The object/value
 - confidence: 0.0 - 1.0
 
-Example:
-Input: "I've been doing Python for 5 years but my new team is all Rust"
-Output:
-  { entity: "User", relation: "HAS_PROPERTY", target: "5 years Python experience", confidence: 0.9 }
-  { entity: "User", relation: "PREFERS", target: "Rust (current team)", confidence: 0.7 }
+Extract two types of facts:
+1. User facts: What we know about the user
+2. Relationship facts: Patterns about how we interact
+
+Example user facts:
+  { entity: "User", relation: "HAS_PROPERTY", target: "5 years TypeScript experience", confidence: 0.9 }
+  { entity: "User", relation: "PREFERS", target: "concise answers", confidence: 0.8 }
+
+Example relationship facts:
+  { entity: "User", relation: "NEEDS", target: "to be heard before getting advice", confidence: 0.85 }
+  { entity: "We", relation: "PATTERN", target: "late night conversations", confidence: 0.7 }
+  { entity: "User", relation: "AVOIDS", target: "discussing family conflicts", confidence: 0.6 }
 ```
 
 ## Conflict Resolution
@@ -155,6 +196,47 @@ pub async fn retrieve(query: &str, db: &DatabaseConnection) -> Result<RetrievalR
 
 Results are ranked by `confidence` weighted by `access_count`. More frequently accessed facts surface first.
 
+## System Prompt Integration
+
+Relationship facts are used to personalize the assistant's behavior:
+
+```rust
+pub fn build_system_prompt(facts: &[SemanticMemory]) -> String {
+    let user_facts: Vec<_> = facts.iter()
+        .filter(|f| f.entity == "User")
+        .collect();
+
+    let relationship_facts: Vec<_> = facts.iter()
+        .filter(|f| f.entity == "We" || f.relation == Needs || f.relation == Avoids)
+        .collect();
+
+    format!(r#"
+User profile:
+{}
+
+Our relationship:
+{}
+"#,
+        format_facts(&user_facts),
+        format_facts(&relationship_facts)
+    )
+}
+```
+
+Example output:
+```
+User profile:
+- User is a backend engineer
+- User prefers concise answers
+- User has 3 years Rust experience
+
+Our relationship:
+- User needs validation before advice
+- User avoids discussing salary
+- We have a pattern of late night deep talks
+- We playfully tease each other
+```
+
 ## No FSRS for Semantic Memory
 
 Semantic Memory does not use FSRS scheduling. Knowledge is not "forgotten" — it is either current or **superseded**:
@@ -171,7 +253,9 @@ Rationale: Factual truth does not decay. Prioritization uses simple access frequ
 ```sql
 CREATE TYPE relation_type AS ENUM (
     'IsA', 'HasProperty', 'RelatedTo', 'PartOf',
-    'Causes', 'UsedFor', 'Prefers', 'Contradicts'
+    'Causes', 'UsedFor', 'Prefers',
+    'Needs', 'Avoids', 'Pattern',
+    'Contradicts'
 );
 
 CREATE TABLE semantic_memory (
