@@ -1,6 +1,6 @@
 use sea_orm_migration::{
   prelude::*,
-  schema::{custom, float, json_binary, string, timestamp_with_time_zone, uuid},
+  schema::{custom, float, json_binary, text, timestamp_with_time_zone, uuid},
   sea_orm::Statement,
 };
 
@@ -18,8 +18,9 @@ impl MigrationTrait for Migration {
           .col(uuid(EpisodicMemory::Id).primary_key())
           .col(uuid(EpisodicMemory::ConversationId))
           .col(json_binary(EpisodicMemory::Messages))
-          .col(string(EpisodicMemory::Content))
+          .col(text(EpisodicMemory::Summary))
           .col(custom(EpisodicMemory::Embedding, "vector(1024)").not_null())
+          .col(text(EpisodicMemory::Title).not_null().default(""))
           // FSRS Memory State
           .col(float(EpisodicMemory::Stability))
           .col(float(EpisodicMemory::Difficulty))
@@ -34,11 +35,21 @@ impl MigrationTrait for Migration {
       )
       .await?;
 
+    // HNSW index for vector similarity search
     manager
       .get_connection()
       .execute_raw(Statement::from_string(
         manager.get_database_backend(),
-        "CREATE INDEX cosine_index ON episodic_memory USING hnsw (embedding vector_cosine_ops);",
+        "CREATE INDEX idx_episodic_memory_embedding_hnsw ON episodic_memory USING hnsw (embedding vector_cosine_ops);",
+      ))
+      .await?;
+
+    // BM25 index for full-text search
+    manager
+      .get_connection()
+      .execute_raw(Statement::from_string(
+        manager.get_database_backend(),
+        "CREATE INDEX idx_episodic_memory_summary_bm25 ON episodic_memory USING bm25 (id, (summary::pdb.icu), created_at) WITH (key_field='id');",
       ))
       .await?;
 
@@ -63,10 +74,12 @@ pub enum EpisodicMemory {
 
   // json messages
   Messages,
-  // formatted messages (for bm25)
-  Content,
-  // formatted messages embedding (for cosine similarity)
+  // memory summary (for bm25)
+  Summary,
+  // memory summary embedding (for cosine similarity)
   Embedding,
+  // memory title
+  Title,
 
   // FSRS Memory State
   Stability,
