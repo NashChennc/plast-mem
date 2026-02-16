@@ -30,18 +30,6 @@ const EMBEDDING_ROLLING_ALPHA: f32 = 0.2;
 // LLM Boundary Detection
 // ──────────────────────────────────────────────────
 
-/// Multi-dimensional boundary signals for event boundary detection.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BoundarySignals {
-  /// Topic shift score (0.0 = same topic, 1.0 = completely different topic)
-  pub topic_shift: f32,
-  /// Intent shift score (0.0 = same intent, 1.0 = completely different intent)
-  pub intent_shift: f32,
-  /// Whether a temporal/topic transition marker was detected
-  /// (e.g., "by the way", "anyway", "speaking of", "顺便说")
-  pub temporal_marker: bool,
-}
-
 /// Structured output from boundary detection LLM call.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct BoundaryDetectionOutput {
@@ -49,8 +37,6 @@ pub struct BoundaryDetectionOutput {
   pub is_boundary: bool,
   /// Boundary confidence score (0.0 ~ 1.0)
   pub confidence: f32,
-  /// Multi-dimensional change signals
-  pub signals: BoundarySignals,
   /// Updated description of "what is happening now" (when NOT a boundary)
   pub updated_event_model: Option<String>,
 }
@@ -72,7 +58,6 @@ Evaluate boundary signals across multiple dimensions:
 Output:
 - **is_boundary**: true if prediction error is high enough to warrant a new event
 - **confidence**: how confident you are (0.0-1.0)
-- **signals**: detailed scores for each dimension
 - **updated_event_model**: if NOT a boundary, the updated description of what is happening now. \
   If IS a boundary, set to null.";
 
@@ -213,9 +198,6 @@ pub async fn detect_boundary(
     conversation_id = %conversation_id,
     is_boundary = detection.is_boundary,
     confidence = detection.confidence,
-    topic_shift = detection.signals.topic_shift,
-    intent_shift = detection.signals.intent_shift,
-    temporal_marker = detection.signals.temporal_marker,
     "Topic channel: LLM boundary detection result"
   );
 
