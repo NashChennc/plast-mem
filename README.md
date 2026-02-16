@@ -50,4 +50,4 @@ No, but I might draw inspiration from some of it - or I might not.
 This project is inspired by the design of:
 
 - [Nemori: Self-Organizing Agent Memory Inspired by Cognitive Science](https://arxiv.org/abs/2508.03341)
-- [HiMem: A Hierarchical Memory Framework for LLM-Based Agents](https://arxiv.org/abs/2601.06377) — dual-channel segmentation design
+- [HiMem: Hierarchical Long-Term Memory for LLM Long-Horizon Agents](https://arxiv.org/abs/2601.06377)
