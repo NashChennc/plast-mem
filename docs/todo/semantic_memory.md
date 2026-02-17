@@ -209,28 +209,35 @@ The extraction job adapts its behavior based on the episode's surprise score. Th
               ▼
      Semantic Extraction Job
               │
-              ├─ 0. Check episode surprise score
+              ├─ 0. Extraction gate (skip low-information episodes)
+              │     └─ Skip if: content.len() < 50 AND surprise < 0.3
+              │
+              ├─ 1. Check episode surprise score
               │     ├─ surprise < 0.85: standard extraction
               │     ├─ surprise ≥ 0.85: deep extraction (more thorough prompt)
               │     └─ surprise ≥ 0.90: deep extraction + surprise_explanation
               │
-              ├─ 1. LLM: extract facts from episode
+              ├─ 2. LLM: extract facts from episode
               │     Input: episode summary + messages + surprise level
               │     Output: SemanticExtractionOutput
               │       ├─ facts: Vec<ExtractedFact>
               │       └─ surprise_explanation: Option<String> (if surprise ≥ 0.90)
               │
-              ├─ 2. For each extracted fact:
-              │     ├─ Embed the `fact` sentence
+              ├─ 3. Batch embed all extracted facts (single API call)
+              │
+              ├─ 4. For each extracted fact:
               │     ├─ Search for similar existing facts (cosine > 0.95)
               │     ├─ Match found  → merge source_ids
               │     └─ No match    → insert new fact
               │
-              ├─ 3. If surprise_explanation exists:
+              ├─ 5. If surprise_explanation exists:
               │     └─ Store on episode (episodic_memory.surprise_explanation)
               │
               └─ Done
 ```
+
+> [!NOTE]
+> **Extraction gating** skips episodes that are too short and unsurprising to contain extractable facts (e.g., "好的", "收到"). This avoids unnecessary LLM calls — estimated 30-50% savings depending on conversation style.
 
 **Why not a separate Surprise Response Job?** The "surprise response" actions (deeper extraction, explanation, belief updates) all happen within the same LLM context as fact extraction. A separate job would require a second LLM call to analyze the same episode, with largely redundant output. Folding it into `SemanticExtractionJob` is both cheaper and more coherent.
 
@@ -276,12 +283,16 @@ Rules:
 4. Preferences, habits, personal info, relationships, and significant events are good candidates.
 5. For behavioral rules, use subject = "assistant".
 
-Recommended predicates (use when applicable, create new ones if needed):
-likes, dislikes, prefers, lives_in, works_at, age_is, name_is,
-is_interested_in, has_experience_with, knows_about,
-communicate_in_style, relationship_is, has_shared_reference, has_routine,
-should, should_not, should_when_[context], responds_to_[trigger]_with
+Predicate taxonomy (use these when applicable; use "other" for novel predicates):
+
+  Personal: likes, dislikes, prefers, lives_in, works_at, age_is, name_is
+  Knowledge: is_interested_in, has_experience_with, knows_about
+  Relational: communicate_in_style, relationship_is, has_shared_reference, has_routine
+  Behavioral: should, should_not, should_when_[context], responds_to_[trigger]_with
 ```
+
+> [!NOTE]
+> Grouping predicates into a taxonomy in the prompt reduces fragmentation (LLMs produce more consistent output when given categorical structure). This is a prompt-only convention — no runtime enforcement.
 
 > [!NOTE]
 > For high-surprise episodes (≥ 0.90), the prompt is extended with:
@@ -326,7 +337,7 @@ Semantic memories are returned **separately from episodic memories** in the exis
 ...
 ```
 
-Retrieval: vector search on the `fact` field. Only active facts (`invalid_at IS NULL`) are returned. No FSRS re-ranking — facts don't decay.
+Retrieval: **vector-only search** on the `fact` field. Only active facts (`invalid_at IS NULL`) are returned. No BM25 — semantic facts are short sentences (typically < 10 words) where TF-IDF scoring adds no discriminative value; embedding similarity is sufficient. No FSRS re-ranking — facts don't decay.
 
 Presentation-time separation: facts where `subject = "assistant"` with procedural predicates (`should`, `should_not`, `should_when_*`, `responds_to_*_with`) are displayed under "Behavioral Guidelines". All other facts go under "Known Facts".
 
@@ -372,22 +383,26 @@ CREATE INDEX idx_semantic_memory_active_subject ON semantic_memory (subject)
 - [ ] `plastmem_entities::semantic_memory` entity
 - [ ] `plastmem_core::memory::semantic.rs` — `SemanticFact` struct, CRUD, embedding dedupe
 - [ ] `SemanticExtractionJob` — triggered after episode creation
-- [ ] LLM extraction prompt (with procedural category) + `generate_object()` call
+  - [ ] Extraction gating: skip low-information episodes (short content + low surprise)
+  - [ ] Batch embedding: embed all extracted facts in a single API call
+- [ ] LLM extraction prompt (with predicate taxonomy + procedural category) + `generate_object()` call
 - [ ] Surprise-aware extraction: deeper prompt for surprise ≥ 0.85, `surprise_explanation` for ≥ 0.90
 - [ ] Add `surprise_explanation: Option<String>` column to `episodic_memory`
-- [ ] `SemanticFact::retrieve()` — vector search, filter `invalid_at IS NULL`
+- [ ] `SemanticFact::retrieve()` — vector-only search, filter `invalid_at IS NULL`
 - [ ] Modify `retrieve_memory` API: add `## Known Facts` + `## Behavioral Guidelines` sections
 - [ ] Update tool result format (presentation-time filter on `subject = "assistant"`)
 
 ### Phase 2: Predict-Calibrate + Conflict Resolution (incorporates Surprise Response)
 
-- [ ] Retrieve related existing facts as LLM context during extraction
+- [ ] **Full predict-calibrate loop** for high-surprise episodes:
+  - [ ] Load top-K related existing facts as context
+  - [ ] LLM predicts episode content based on existing knowledge
+  - [ ] Compare prediction vs actual → prediction gap drives extraction aggressiveness
 - [ ] Extend `ExtractedFact` with `action` field ("new" / "reinforce" / "invalidate")
 - [ ] LLM-based conflict detection (sets `invalid_at` on contradicted facts)
 - [ ] For high-surprise episodes: LLM identifies which existing beliefs are challenged → `invalidate`
 - [ ] Optional: predicate canonicalization via embedding similarity
 - [ ] Optional: computed confidence score from `source_ids`
-- [ ] Optional: trigger extraction only for high-information episodes
 
 ## Scenario Walkthrough
 
@@ -442,8 +457,9 @@ Episode 3: "Sorry, my name is actually Alice"
 ## Open Questions
 
 1. **Dedupe threshold**: 0.95 is a starting point. Needs empirical validation — too low risks merging distinct facts, too high risks fragmentation.
-2. **Extraction frequency**: Every episode for now. Consider optimizing to high-surprise episodes in Phase 2 if LLM cost becomes a concern.
+2. **Extraction gate calibration**: The `content.len() < 50 AND surprise < 0.3` gate is conservative. Monitor false-negative rate (episodes that should have been extracted but were skipped).
 3. **Surprise threshold calibration**: Should the 0.85/0.90 thresholds be adaptive based on the user's baseline surprise distribution?
+4. **Predict-calibrate cost**: The full predict-calibrate loop adds one LLM call. Should it run for all episodes or only high-surprise ones?
 
 ## References
 
@@ -456,8 +472,9 @@ Episode 3: "Sorry, my name is actually Alice"
 ## What We Don't Do
 
 - **No knowledge graph engine**: Free-form triples stored in Postgres. Subjects/objects can become graph nodes in the future.
+- **No BM25 for facts**: Facts are short sentences where TF-IDF adds no value. Vector-only search is sufficient and simpler.
 - **No FSRS for facts**: Semantic knowledge doesn't follow forgetting curves.
-- **No predicate enum**: Prompt guidance only. Canonicalization deferred.
+- **No predicate enum**: Prompt-level taxonomy guidance only. Runtime canonicalization deferred.
 - **No confidence formula**: `source_ids.len()` is sufficient for MVP.
 - **No LLM conflict detection in MVP**: Embedding dedupe only. Contradictions are safe to coexist temporarily.
 - **No separate procedural memory table**: Procedural rules reuse semantic memory with `subject = "assistant"` convention.

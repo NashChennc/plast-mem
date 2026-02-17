@@ -66,17 +66,22 @@ Fact added to subject
             │             │
             ▼             ▼
     ┌──────────────┐  ┌────────────────────┐
-    │ Generate new │  │ Refresh interval   │
-    │ SemanticNote │  │ passed?            │
-    └──────────────┘  └───────┬────────────┘
-                              │
+    │ Generate new │  │ Incremental check  │
+    │ SemanticNote │  └───────┬────────────┘
+    └──────────────┘          │
                         ┌─────┴─────┐
                         │           │
-                       No         Yes
+                  Minor change   Major change
+                  (< 20% new     (≥ 20% new facts
+                   facts, no      OR invalidation
+                   invalidation)  occurred)
                         │           │
                         ▼           ▼
                       Skip    Regenerate Note
 ```
+
+> [!NOTE]
+> **Incremental check** avoids regenerating the entire note when only a few new facts arrive. Most new facts don't change a subject's overall profile. Full regeneration is triggered when fact count changes by ≥ 20% or when an existing fact is invalidated (indicating a meaningful belief change).
 
 ### 1.4 Generation Prompt
 
@@ -145,7 +150,37 @@ pub async fn retrieve_memory(
 }
 ```
 
-### 1.6 Presentation Format
+### 1.6 Cross-Subject Linking
+
+Links between Semantic Notes are discovered automatically via shared fact objects:
+
+```rust
+// crates/core/src/memory/semantic_note.rs
+pub fn discover_related_notes(
+    subject: &str,
+    facts: &[SemanticMemory],
+    all_notes: &[SemanticNote],
+) -> Vec<Uuid> {
+    // Collect all objects from this subject's facts
+    let objects: HashSet<&str> = facts.iter()
+        .map(|f| f.object.as_str())
+        .collect();
+
+    // Find notes for other subjects that share any object
+    all_notes.iter()
+        .filter(|note| note.subject != subject)
+        .filter(|note| {
+            // Check if any of this note's key facts share an object
+            note.key_facts_objects.iter().any(|obj| objects.contains(obj.as_str()))
+        })
+        .map(|note| note.id)
+        .collect()
+}
+```
+
+**Example**: "user likes Rust" + "assistant should use Rust examples" → `user` note ↔ `assistant` note linked through shared object "Rust".
+
+### 1.7 Presentation Format
 
 ```markdown
 ## Semantic Overview
@@ -452,8 +487,10 @@ Inferred facts are marked but included naturally:
 1. Add `semantic_note` table migration
 2. Create entity and CRUD operations
 3. Implement generation trigger in `SemanticExtractionJob`
-4. Modify retrieval to include notes
-5. Update presentation format
+4. Implement incremental update check (≥ 20% new facts OR invalidation → regenerate)
+5. Implement cross-subject linking via shared objects
+6. Modify retrieval to include notes
+7. Update presentation format
 
 ### Phase 2 Mid: Adaptive Threshold
 
@@ -473,13 +510,15 @@ Inferred facts are marked but included naturally:
 
 ## 5. Open Questions
 
-1. **Semantic Note links**: Should notes link to each other ("user" ↔ "we")? How are these discovered?
+1. ~~**Semantic Note links**: Should notes link to each other ("user" ↔ "we")? How are these discovered?~~ → **Resolved**: Auto-discovered via shared fact objects (see §1.6).
 
 2. **Threshold bounds**: Should adaptive thresholds have hard upper/lower bounds (e.g., never below 0.6, never above 0.95)?
 
 3. **Inference expansion**: Which additional rules provide value without over-inferring? (e.g., "friend_of" transitivity has symmetry concerns)
 
 4. **Cache invalidation**: When underlying facts change, how aggressively should we invalidate inference caches?
+
+5. **Incremental vs full regeneration**: Is the 20% fact-change threshold the right trigger for Semantic Note regeneration? May need empirical tuning.
 
 ---
 
