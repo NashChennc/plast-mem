@@ -1,13 +1,16 @@
 use apalis::prelude::TaskSink;
 use apalis_postgres::PostgresStorage;
 use chrono::Utc;
-use plastmem_core::{MessageQueue, SegmentationAction, create_episode, detect_boundary};
+use plastmem_core::{
+  CONSOLIDATION_EPISODE_THRESHOLD, EpisodicMemory, FLASHBULB_SURPRISE_THRESHOLD, MessageQueue,
+  SegmentationAction, create_episode, detect_boundary,
+};
 use plastmem_shared::{AppError, Message};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::MemoryReviewJob;
+use super::{MemoryReviewJob, SemanticConsolidationJob};
 
 // ──────────────────────────────────────────────────
 // Job definition
@@ -28,6 +31,7 @@ pub async fn process_event_segmentation(
   job: EventSegmentationJob,
   db: apalis::prelude::Data<DatabaseConnection>,
   review_storage: apalis::prelude::Data<PostgresStorage<MemoryReviewJob>>,
+  semantic_storage: apalis::prelude::Data<PostgresStorage<SemanticConsolidationJob>>,
 ) -> Result<(), AppError> {
   let db = &*db;
 
@@ -43,6 +47,7 @@ pub async fn process_event_segmentation(
     return Ok(());
   }
   let review_storage = &*review_storage;
+  let semantic_storage = &*semantic_storage;
   tracing::debug!(
     conversation_id = %job.conversation_id,
     action = ?job.action,
@@ -55,39 +60,23 @@ pub async fn process_event_segmentation(
   let drain_count = job.messages.len().saturating_sub(1);
 
   match job.action {
-    // Force-create: skip boundary detection, go straight to episode generation.
-    SegmentationAction::ForceCreate => {
-      tracing::info!(
-        conversation_id = %job.conversation_id,
-        messages = job.messages.len(),
-        drain_count,
+    // Force-create and Time-boundary both skip boundary detection, go straight to episode generation.
+    SegmentationAction::ForceCreate | SegmentationAction::TimeBoundary => {
+      let log_msg = if matches!(job.action, SegmentationAction::ForceCreate) {
         "Force-creating episode (buffer full)"
-      );
-      if drain_count > 0 {
-        enqueue_pending_reviews(job.conversation_id, &job.messages, &db, &review_storage).await?;
-        create_episode(
-          job.conversation_id,
-          &job.messages,
-          drain_count,
-          None,
-          0.0,
-          &db,
-        )
-        .await?;
-      }
-    }
-
-    // Time boundary: skip boundary detection, create episode.
-    SegmentationAction::TimeBoundary => {
+      } else {
+        "Creating episode (time boundary)"
+      };
       tracing::info!(
         conversation_id = %job.conversation_id,
         messages = job.messages.len(),
         drain_count,
-        "Creating episode (time boundary)"
+        "{}",
+        log_msg
       );
       if drain_count > 0 {
         enqueue_pending_reviews(job.conversation_id, &job.messages, &db, &review_storage).await?;
-        create_episode(
+        if let Some(episode) = create_episode(
           job.conversation_id,
           &job.messages,
           drain_count,
@@ -95,7 +84,11 @@ pub async fn process_event_segmentation(
           0.0,
           &db,
         )
-        .await?;
+        .await?
+        {
+          enqueue_semantic_consolidation(job.conversation_id, episode, &db, semantic_storage)
+            .await?;
+        }
       }
     }
 
@@ -113,7 +106,7 @@ pub async fn process_event_segmentation(
         );
         if drain_count > 0 {
           enqueue_pending_reviews(job.conversation_id, &job.messages, &db, &review_storage).await?;
-          create_episode(
+          if let Some(episode) = create_episode(
             job.conversation_id,
             &job.messages,
             drain_count,
@@ -121,7 +114,11 @@ pub async fn process_event_segmentation(
             result.surprise_signal,
             &db,
           )
-          .await?;
+          .await?
+          {
+            enqueue_semantic_consolidation(job.conversation_id, episode, &db, semantic_storage)
+              .await?;
+          }
         }
       } else {
         // No boundary — just process pending reviews, don't drain.
@@ -153,5 +150,45 @@ async fn enqueue_pending_reviews(
     let mut storage = review_storage.clone();
     storage.push(review_job).await?;
   }
+  Ok(())
+}
+
+/// Enqueue a SemanticConsolidationJob if threshold is met or it's a flashbulb memory.
+async fn enqueue_semantic_consolidation(
+  conversation_id: Uuid,
+  episode: plastmem_core::CreatedEpisode,
+  db: &DatabaseConnection,
+  semantic_storage: &PostgresStorage<SemanticConsolidationJob>,
+) -> Result<(), AppError> {
+  // Check if we should trigger consolidation
+  // 1. Flashbulb memory (high surprise) -> immediate force consolidation
+  // 2. Threshold reached (>= 3 unconsolidated episodes) -> standard consolidation
+
+  let is_flashbulb = episode.surprise >= FLASHBULB_SURPRISE_THRESHOLD;
+  let unconsolidated_count =
+    EpisodicMemory::count_unconsolidated_for_conversation(conversation_id, db).await?;
+  let threshold_reached = unconsolidated_count >= CONSOLIDATION_EPISODE_THRESHOLD;
+
+  if is_flashbulb || threshold_reached {
+    let job = SemanticConsolidationJob {
+      conversation_id,
+      force: is_flashbulb,
+    };
+    let mut storage = semantic_storage.clone();
+    storage.push(job).await?;
+    tracing::info!(
+      conversation_id = %conversation_id,
+      unconsolidated_count,
+      is_flashbulb,
+      "Enqueued semantic consolidation job"
+    );
+  } else {
+    tracing::debug!(
+      conversation_id = %conversation_id,
+      unconsolidated_count,
+      "Accumulating episode for later consolidation"
+    );
+  }
+
   Ok(())
 }

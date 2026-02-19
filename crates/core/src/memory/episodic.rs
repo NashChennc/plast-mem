@@ -5,7 +5,8 @@ use plastmem_entities::episodic_memory;
 use plastmem_shared::{AppError, Message};
 
 use sea_orm::{
-  ConnectionTrait, DatabaseConnection, DbBackend, FromQueryResult, Statement, prelude::PgVector,
+  ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait, FromQueryResult,
+  QueryFilter, QueryOrder, Statement, prelude::{Expr, PgVector},
 };
 use serde::Serialize;
 use utoipa::ToSchema;
@@ -28,6 +29,7 @@ pub struct EpisodicMemory {
   pub end_at: DateTime<Utc>,
   pub created_at: DateTime<Utc>,
   pub last_reviewed_at: DateTime<Utc>,
+  pub consolidated_at: Option<DateTime<Utc>>,
 }
 
 impl EpisodicMemory {
@@ -46,6 +48,7 @@ impl EpisodicMemory {
       end_at: model.end_at.with_timezone(&Utc),
       created_at: model.created_at.with_timezone(&Utc),
       last_reviewed_at: model.last_reviewed_at.with_timezone(&Utc),
+      consolidated_at: model.consolidated_at.map(|dt| dt.with_timezone(&Utc)),
     })
   }
 
@@ -64,7 +67,66 @@ impl EpisodicMemory {
       end_at: self.end_at.into(),
       created_at: self.created_at.into(),
       last_reviewed_at: self.last_reviewed_at.into(),
+      consolidated_at: self.consolidated_at.map(Into::into),
     })
+  }
+
+  /// Count unconsolidated episodes for a specific conversation.
+  pub async fn count_unconsolidated_for_conversation(
+    conversation_id: Uuid,
+    db: &DatabaseConnection,
+  ) -> Result<u64, AppError> {
+    use sea_orm::PaginatorTrait;
+    let count = episodic_memory::Entity::find()
+      .filter(episodic_memory::Column::ConsolidatedAt.is_null())
+      .filter(episodic_memory::Column::ConversationId.eq(conversation_id))
+      .count(db)
+      .await?;
+    Ok(count)
+  }
+
+  /// Fetch unconsolidated episodes for a specific conversation.
+  pub async fn fetch_unconsolidated_for_conversation(
+    conversation_id: Uuid,
+    db: &DatabaseConnection,
+  ) -> Result<Vec<Self>, AppError> {
+    let models = episodic_memory::Entity::find()
+      .filter(episodic_memory::Column::ConsolidatedAt.is_null())
+      .filter(episodic_memory::Column::ConversationId.eq(conversation_id))
+      .order_by_asc(episodic_memory::Column::CreatedAt)
+      .all(db)
+      .await?;
+    models.into_iter().map(Self::from_model).collect()
+  }
+
+  /// Mark the given episodes as consolidated (bulk update).
+  pub async fn mark_consolidated<C: ConnectionTrait>(
+    ids: &[Uuid],
+    db: &C,
+  ) -> Result<(), AppError> {
+    use sea_orm::sea_query::Value as SeaValue;
+
+    if ids.is_empty() {
+      return Ok(());
+    }
+
+    let now: sea_orm::prelude::DateTimeWithTimeZone = Utc::now().into();
+
+    // Bulk update: UPDATE episodic_memory SET consolidated_at = now WHERE id = ANY(ids)
+    episodic_memory::Entity::update_many()
+      .col_expr(
+        episodic_memory::Column::ConsolidatedAt,
+        Expr::value(now),
+      )
+      .filter(
+        episodic_memory::Column::Id.is_in(
+          ids.iter().copied().map(SeaValue::from).collect::<Vec<_>>()
+        )
+      )
+      .exec(db)
+      .await?;
+
+    Ok(())
   }
 
   /// Retrieve episodic memories using hybrid BM25 + vector search with FSRS re-ranking.

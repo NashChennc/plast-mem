@@ -11,12 +11,17 @@ use sea_orm::DatabaseConnection;
 pub mod jobs;
 pub use jobs::EventSegmentationJob;
 pub use jobs::MemoryReviewJob;
-use jobs::{WorkerError, process_event_segmentation, process_memory_review};
+pub use jobs::SemanticConsolidationJob;
+use jobs::{
+  WorkerError, process_event_segmentation, process_memory_review,
+  process_semantic_consolidation,
+};
 
 pub async fn worker(
   db: &DatabaseConnection,
   segmentation_backend: PostgresStorage<EventSegmentationJob>,
   review_backend: PostgresStorage<MemoryReviewJob>,
+  semantic_backend: PostgresStorage<SemanticConsolidationJob>,
 ) -> Result<(), AppError> {
   let db = db.clone();
 
@@ -24,14 +29,16 @@ pub async fn worker(
     .register({
       let db = db.clone();
       let review_backend = review_backend.clone();
+      let semantic_backend = semantic_backend.clone();
       move |_run_id| {
         WorkerBuilder::new("event-segmentation")
           .backend(segmentation_backend.clone())
           .enable_tracing()
           .data(db.clone())
           .data(review_backend.clone())
-          .build(move |job, data, review_storage| async move {
-            process_event_segmentation(job, data, review_storage)
+          .data(semantic_backend.clone())
+          .build(move |job, data, review_storage, semantic_storage| async move {
+            process_event_segmentation(job, data, review_storage, semantic_storage)
               .await
               .map_err(WorkerError::from)
           })
@@ -46,6 +53,20 @@ pub async fn worker(
           .data(db.clone())
           .build(move |job, data| async move {
             process_memory_review(job, data)
+              .await
+              .map_err(WorkerError::from)
+          })
+      }
+    })
+    .register({
+      let db = db.clone();
+      move |_run_id| {
+        WorkerBuilder::new("semantic-consolidation")
+          .backend(semantic_backend.clone())
+          .enable_tracing()
+          .data(db.clone())
+          .build(move |job, data| async move {
+            process_semantic_consolidation(job, data)
               .await
               .map_err(WorkerError::from)
           })
