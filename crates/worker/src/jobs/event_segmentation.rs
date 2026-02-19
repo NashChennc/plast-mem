@@ -147,8 +147,8 @@ async fn enqueue_pending_reviews(
       context_messages: context_messages.to_vec(),
       reviewed_at: Utc::now(),
     };
-    let mut storage = review_storage.clone();
-    storage.push(review_job).await?;
+    let mut review_job_storage = review_storage.clone();
+    review_job_storage.push(review_job).await?;
   }
   Ok(())
 }
@@ -174,8 +174,8 @@ async fn enqueue_semantic_consolidation(
       conversation_id,
       force: is_flashbulb,
     };
-    let mut storage = semantic_storage.clone();
-    storage.push(job).await?;
+    let mut semantic_job_storage = semantic_storage.clone();
+    semantic_job_storage.push(job).await?;
     tracing::info!(
       conversation_id = %conversation_id,
       unconsolidated_count,

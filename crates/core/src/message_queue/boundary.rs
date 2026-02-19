@@ -171,8 +171,8 @@ pub async fn detect_boundary(
         new_embedding.as_slice(),
         EMBEDDING_ROLLING_ALPHA,
       );
-      let new_pg_embedding = PgVector::from(updated_vec);
-      MessageQueue::update_last_embedding(conversation_id, Some(new_pg_embedding), db).await?;
+      let updated_embedding = PgVector::from(updated_vec);
+      MessageQueue::update_last_embedding(conversation_id, Some(updated_embedding), db).await?;
       return Ok(BoundaryResult {
         is_boundary: false,
         latest_embedding: Some(new_embedding),
@@ -209,8 +209,8 @@ pub async fn detect_boundary(
         new_embedding.as_slice(),
         EMBEDDING_ROLLING_ALPHA,
       );
-      let pg_embedding = PgVector::from(updated_vec);
-      MessageQueue::update_last_embedding(conversation_id, Some(pg_embedding), db).await?;
+      let updated_embedding = PgVector::from(updated_vec);
+      MessageQueue::update_last_embedding(conversation_id, Some(updated_embedding), db).await?;
     } else {
       // Initialize if None
       MessageQueue::update_last_embedding(conversation_id, Some(new_embedding.clone()), db).await?;

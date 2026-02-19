@@ -99,7 +99,7 @@ impl MessageQueue {
     message: Message,
     db: &DatabaseConnection,
   ) -> Result<Option<SegmentationCheck>, AppError> {
-    let check_result = Self::check(id, &message, db).await?;
+    let check = Self::check(id, &message, db).await?;
 
     let message_value = serde_json::to_value(vec![message])?;
 
@@ -119,7 +119,7 @@ impl MessageQueue {
       return Err(anyhow!("Queue not found").into());
     }
 
-    Ok(check_result)
+    Ok(check)
   }
 
   /// Atomically removes the first `count` messages from the queue,

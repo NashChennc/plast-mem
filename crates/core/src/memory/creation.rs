@@ -95,43 +95,43 @@ pub async fn create_episode(
   db: &DatabaseConnection,
 ) -> Result<Option<CreatedEpisode>, AppError> {
   // Only generate episode from the messages being drained
-  let segment_messages: Vec<Message> = messages[..drain_count].to_vec();
+  let episode_messages: Vec<Message> = messages[..drain_count].to_vec();
 
   // Episode generation (Representation Alignment)
-  let episode = generate_episode_info(&segment_messages).await?;
+  let episode_output = generate_episode_info(&episode_messages).await?;
 
   let surprise = surprise_signal.clamp(0.0, 1.0);
 
-  if episode.summary.is_empty() {
+  if episode_output.summary.is_empty() {
     // Edge case: LLM returned empty summary — just drain and return
     MessageQueue::drain(conversation_id, drain_count, db).await?;
     return Ok(None);
   }
 
   // Generate embedding for the summary
-  let embedding = embed(&episode.summary).await?;
+  let embedding = embed(&episode_output.summary).await?;
 
   let id = Uuid::now_v7();
   let now = Utc::now();
-  let start_at = segment_messages.first().map_or(now, |m| m.timestamp);
-  let end_at = segment_messages.last().map_or(now, |m| m.timestamp);
+  let start_at = episode_messages.first().map_or(now, |m| m.timestamp);
+  let end_at = episode_messages.last().map_or(now, |m| m.timestamp);
 
   // Initialize FSRS state with surprise-based stability boost
   let fsrs = FSRS::new(Some(&DEFAULT_PARAMETERS))?;
   let initial_states = fsrs.next_states(None, DESIRED_RETENTION, 0)?;
-  let initial_memory = initial_states.good.memory;
-  let boosted_stability = initial_memory.stability * (1.0 + surprise * SURPRISE_BOOST_FACTOR);
+  let initial_state = initial_states.good.memory;
+  let boosted_stability = initial_state.stability * (1.0 + surprise * SURPRISE_BOOST_FACTOR);
 
   // Create EpisodicMemory with title from Two-Step Alignment
   let episodic_memory = EpisodicMemory {
     id,
     conversation_id,
-    messages: segment_messages.clone(),
-    title: episode.title,
-    summary: episode.summary.clone(),
+    messages: episode_messages.clone(),
+    title: episode_output.title,
+    summary: episode_output.summary.clone(),
     embedding,
     stability: boosted_stability,
-    difficulty: initial_memory.difficulty,
+    difficulty: initial_state.difficulty,
     surprise,
     start_at,
     end_at,
@@ -172,8 +172,8 @@ pub async fn create_episode(
 
   Ok(Some(CreatedEpisode {
     id,
-    summary: episode.summary,
-    messages: segment_messages,
+    summary: episode_output.summary,
+    messages: episode_messages,
     surprise,
   }))
 }
