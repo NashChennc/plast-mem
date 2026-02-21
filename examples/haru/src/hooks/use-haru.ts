@@ -35,7 +35,7 @@ export const useHaru = (conversation_id: string) => {
   const { data: tools, isLoading: isToolsLoading } = useSWR(['haru/tools', conversation_id], async () => {
     const retrieveMemoryTool = await tool({
       description: 'Search long-term memory for relevant facts and past episodes',
-      execute: async ({ query }) => retrieveMemory({ body: { conversation_id, query } }).then(res => res.data),
+      execute: async ({ query }) => retrieveMemory({ body: { conversation_id, query } }).then(res => res.data ?? String(res.error)),
       name: 'retrieve_memory',
       parameters: z.object({
         query: z.string().describe('Search query'),
