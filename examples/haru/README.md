@@ -47,7 +47,7 @@ The app will connect to your local Plast Mem instance and start chatting.
 
 ## How It Works
 
--**Persistent identity**: conversation ID is stored in `HARU_CONVERSATION_ID` env variable and reused across sessions
+- **Persistent identity**: conversation ID is stored in `HARU_CONVERSATION_ID` env variable and reused across sessions
 - **Session start**: fetches `recent_memory` and injects it into the system prompt
 - **Each turn**: auto-calls `add_message` for both user and assistant messages
 - **Memory retrieval**: `retrieve_memory` is exposed as an LLM tool — Haru calls it when she needs to look something up
