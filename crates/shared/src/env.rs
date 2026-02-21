@@ -19,7 +19,9 @@ impl AppEnv {
 
     Self {
       database_url: required_env("DATABASE_URL"),
-      openai_base_url: required_env("OPENAI_BASE_URL"),
+      openai_base_url: required_env("OPENAI_BASE_URL")
+        .trim_end_matches('/')
+        .to_owned(),
       openai_api_key: required_env("OPENAI_API_KEY"),
       openai_chat_model: required_env("OPENAI_CHAT_MODEL"),
       openai_embedding_model: required_env("OPENAI_EMBEDDING_MODEL"),
