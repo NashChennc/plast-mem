@@ -8,6 +8,7 @@
     "dev": "vite-node -w src/index.tsx"
   },
   "dependencies": {
+    "@insel-null/uuid": "^0.0.1",
     "@pnpm/find-workspace-dir": "^1000.1.4",
     "@xsai/generate-text": "^0.4.3",
     "@xsai/shared-chat": "^0.4.3",

@@ -1,12 +1,11 @@
 /* eslint-disable @masknet/jsx-no-logical */
 import type { Message, Tool, UserMessage } from '@xsai/shared-chat'
 
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { env, exit } from 'node:process'
 
+import uuid from '@insel-null/uuid'
 import TextInput from 'ink-text-input'
 
 import { generateText } from '@xsai/generate-text'
@@ -42,21 +41,74 @@ const buildSystemPrompt = (recentMemoryText: string, sessionStart: Date): string
     .replace('{elapsed_time}', elapsed)
 }
 
-const loadConversationId = (): string => {
-  const dir = join(homedir(), '.config', 'haru')
-  const file = join(dir, 'id')
+const ENV_KEY = 'HARU_CONVERSATION_ID'
+
+const loadEnvContent = (envPath: string): string => {
   try {
-    return readFileSync(file, 'utf-8').trim()
+    return readFileSync(envPath, 'utf-8')
   }
   catch {
-    mkdirSync(dir, { recursive: true })
-    const id = randomUUID()
-    writeFileSync(file, id)
-    return id
+    return ''
   }
 }
 
-export const ChatApp = () => {
+const parseEnv = (content: string): Map<string, string> => {
+  const map = new Map<string, string>()
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#'))
+      continue
+    const eq = trimmed.indexOf('=')
+    if (eq === -1)
+      continue
+    const key = trimmed.slice(0, eq).trim()
+    let value = trimmed.slice(eq + 1).trim()
+    // Remove quotes if present
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith('\'') && value.endsWith('\''))) {
+      value = value.slice(1, -1)
+    }
+    map.set(key, value)
+  }
+  return map
+}
+
+const serializeEnv = (map: Map<string, string>): string => {
+  const lines: string[] = []
+  for (const [key, value] of map) {
+    // Quote value if it contains spaces or special chars
+    const needsQuote = /[\s"'#=]/.test(value)
+    lines.push(`${key}=${needsQuote ? `"${value.replace(/"/g, '\\"')}"` : value}`)
+  }
+  return lines.join('\n')
+}
+
+const loadConversationId = (workspace: string): string => {
+  const envPath = join(workspace, '.env')
+  const envMap = parseEnv(loadEnvContent(envPath))
+  const existing = envMap.get(ENV_KEY)
+  if (existing != null)
+    return existing
+
+  const id = uuid.v7()
+  envMap.set(ENV_KEY, id)
+  writeFileSync(envPath, serializeEnv(envMap))
+  return id
+}
+
+const resetConversationId = (workspace: string): string => {
+  const envPath = join(workspace, '.env')
+  const envMap = parseEnv(loadEnvContent(envPath))
+  const id = uuid.v7()
+  envMap.set(ENV_KEY, id)
+  writeFileSync(envPath, serializeEnv(envMap))
+  return id
+}
+
+interface ChatAppProps {
+  workspace: string
+}
+
+export const ChatApp = ({ workspace }: ChatAppProps) => {
   useTerminalTitle('🌷 Haru')
 
   const [input, setInput] = useState('')
@@ -73,7 +125,7 @@ export const ChatApp = () => {
   const sessionStartRef = useRef<Date>(new Date())
 
   useEffect(() => {
-    const conversationId = loadConversationId()
+    const conversationId = loadConversationId(workspace)
     conversationIdRef.current = conversationId
 
     recentMemory({ body: { conversation_id: conversationId } })
@@ -97,6 +149,19 @@ export const ChatApp = () => {
       }
       else if (value === '/exit') {
         exit(0)
+      }
+      else if (value === '/reset') {
+        const newId = resetConversationId(workspace)
+        conversationIdRef.current = newId
+        setMessages([])
+        // Reload memories for the new conversation
+        recentMemory({ body: { conversation_id: newId } })
+          .then(({ data }) => {
+            systemPromptRef.current = buildSystemPrompt(data ?? '', sessionStartRef.current)
+          })
+          .catch(() => {
+            systemPromptRef.current = buildSystemPrompt('', sessionStartRef.current)
+          })
       }
       return
     }

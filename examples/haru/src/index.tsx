@@ -17,7 +17,7 @@ const main = async () => {
   // eslint-disable-next-line no-console
   console.clear()
 
-  render(<ChatApp />)
+  render(<ChatApp workspace={workspace!} />)
 }
 
 // if (import.meta.main) {
