@@ -1,9 +1,13 @@
-use std::fmt::Display;
+use std::{
+  fmt::Display,
+  panic::Location,
+};
 
 use axum::{
   http::StatusCode,
   response::{IntoResponse, Response},
 };
+use tracing::error;
 use tracing_error::SpanTrace;
 
 #[derive(Debug)]
@@ -11,6 +15,7 @@ pub struct AppError {
   err: anyhow::Error,
   status_code: StatusCode,
   span_trace: SpanTrace,
+  location: &'static Location<'static>,
 }
 
 impl AppError {
@@ -21,6 +26,7 @@ impl AppError {
       err: err.into(),
       status_code: StatusCode::INTERNAL_SERVER_ERROR,
       span_trace: SpanTrace::capture(),
+      location: Location::caller(),
     }
   }
 
@@ -31,6 +37,7 @@ impl AppError {
       err: err.into(),
       status_code: status,
       span_trace: SpanTrace::capture(),
+      location: Location::caller(),
     }
   }
 
@@ -43,18 +50,34 @@ impl AppError {
   pub fn span_trace(&self) -> &SpanTrace {
     &self.span_trace
   }
+
+  /// Get the source location where the error originated
+  pub fn location(&self) -> &'static Location<'static> {
+    self.location
+  }
 }
 
 impl IntoResponse for AppError {
   fn into_response(self) -> Response {
     let body = if cfg!(debug_assertions) {
       format!(
-        "{}\n\nSpan Trace:\n{}",
-        self.err, self.span_trace
+        "{}\n\nError origin: {}:{}\n\nSpan Trace:\n{}",
+        self.err,
+        self.location.file(),
+        self.location.line(),
+        self.span_trace
       )
     } else {
       self.err.to_string()
     };
+
+    error!(
+      status = %self.status_code,
+      error = %self.err,
+      location = %format!("{}:{}", self.location.file(), self.location.line()),
+      "Request failed"
+    );
+
     (self.status_code, body).into_response()
   }
 }
@@ -71,6 +94,11 @@ where
 {
   #[track_caller]
   fn from(err: E) -> Self {
-    Self::new(err)
+    Self {
+      err: err.into(),
+      status_code: StatusCode::INTERNAL_SERVER_ERROR,
+      span_trace: SpanTrace::capture(),
+      location: Location::caller(),
+    }
   }
 }
