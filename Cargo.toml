@@ -79,6 +79,7 @@ serde_json = "1.0.149"
 tokio = { version = "1.49.0", features = ["full"] }
 uuid = { version = "1.20.0", features = ["serde", "v4", "v7"] }
 fsrs = "5.2.0"
+tracing-error = "0.2"
 utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-axum = { version = "0.2.0" }
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }
@@ -91,4 +92,5 @@ plastmem_server.workspace = true
 apalis-postgres.workspace = true
 sea-orm.workspace = true
 tokio.workspace = true
+tracing-error.workspace = true
 tracing-subscriber = "0.3.22"

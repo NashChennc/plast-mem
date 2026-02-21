@@ -21,4 +21,5 @@ axum.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
 serde.workspace = true
+tracing-error.workspace = true
 utoipa.workspace = true

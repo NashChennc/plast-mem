@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[axum::debug_handler]
+#[tracing::instrument]
 async fn handler() -> Html<&'static str> {
   Html("<h1>Plast Mem</h1>")
 }

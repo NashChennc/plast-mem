@@ -1,33 +1,36 @@
-use std::{
-  backtrace::{Backtrace, BacktraceStatus},
-  fmt::Display,
-};
+use std::fmt::Display;
 
 use axum::{
   http::StatusCode,
   response::{IntoResponse, Response},
 };
+use tracing_error::SpanTrace;
 
 #[derive(Debug)]
 pub struct AppError {
   err: anyhow::Error,
   status_code: StatusCode,
+  span_trace: SpanTrace,
 }
 
 impl AppError {
   /// Create with 500 status
+  #[track_caller]
   pub fn new<E: Into<anyhow::Error>>(err: E) -> Self {
     Self {
       err: err.into(),
       status_code: StatusCode::INTERNAL_SERVER_ERROR,
+      span_trace: SpanTrace::capture(),
     }
   }
 
   /// Create with custom status
+  #[track_caller]
   pub fn with_status<E: Into<anyhow::Error>>(status: StatusCode, err: E) -> Self {
     Self {
       err: err.into(),
       status_code: status,
+      span_trace: SpanTrace::capture(),
     }
   }
 
@@ -36,24 +39,19 @@ impl AppError {
     self.status_code
   }
 
-  /// Get backtrace from anyhow (requires `RUST_BACKTRACE=1` to capture)
-  pub fn backtrace(&self) -> &Backtrace {
-    self.err.backtrace()
+  /// Get the captured span trace
+  pub fn span_trace(&self) -> &SpanTrace {
+    &self.span_trace
   }
 }
 
 impl IntoResponse for AppError {
   fn into_response(self) -> Response {
     let body = if cfg!(debug_assertions) {
-      let bt = self.err.backtrace();
-      if bt.status() == BacktraceStatus::Captured {
-        format!("{}\nBacktrace:\n{}", self.err, bt)
-      } else {
-        format!(
-          "{}\n(hint: set RUST_BACKTRACE=1 to enable backtrace)",
-          self.err
-        )
-      }
+      format!(
+        "{}\n\nSpan Trace:\n{}",
+        self.err, self.span_trace
+      )
     } else {
       self.err.to_string()
     };
@@ -71,6 +69,7 @@ impl<E> From<E> for AppError
 where
   E: Into<anyhow::Error>,
 {
+  #[track_caller]
   fn from(err: E) -> Self {
     Self::new(err)
   }

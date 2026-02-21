@@ -10,13 +10,13 @@ use uuid::Uuid;
 
 use crate::utils::AppState;
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct AddMessage {
   pub conversation_id: Uuid,
   pub message: AddMessageMessage,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct AddMessageMessage {
   pub role: MessageRole,
   pub content: String,
@@ -38,6 +38,7 @@ pub struct AddMessageMessage {
   )
 )]
 #[axum::debug_handler]
+#[tracing::instrument(skip(state), fields(conversation_id = %payload.conversation_id))]
 pub async fn add_message(
   State(state): State<AppState>,
   Json(payload): Json<AddMessage>,

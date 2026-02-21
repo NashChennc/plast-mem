@@ -27,7 +27,7 @@ const fn sanitize_limit(value: u64) -> i64 {
   }
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RetrieveMemory {
   /// Conversation ID to filter memories by and associate pending review with
   pub conversation_id: Uuid,
@@ -96,6 +96,7 @@ pub struct EpisodicMemoryResult {
   )
 )]
 #[axum::debug_handler]
+#[tracing::instrument(skip(state), fields(conversation_id = %payload.conversation_id))]
 pub async fn retrieve_memory_raw(
   State(state): State<AppState>,
   Json(payload): Json<RetrieveMemory>,
@@ -152,6 +153,7 @@ pub async fn retrieve_memory_raw(
   )
 )]
 #[axum::debug_handler]
+#[tracing::instrument(skip(state), fields(conversation_id = %payload.conversation_id))]
 pub async fn retrieve_memory(
   State(state): State<AppState>,
   Json(payload): Json<RetrieveMemory>,

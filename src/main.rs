@@ -4,6 +4,7 @@ use plastmem_server::server;
 use plastmem_shared::{APP_ENV, AppError};
 use plastmem_worker::{EventSegmentationJob, MemoryReviewJob, SemanticConsolidationJob, worker};
 use sea_orm::Database;
+use tracing_error::ErrorLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -14,6 +15,7 @@ async fn main() -> Result<(), AppError> {
         .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
     )
     .with(tracing_subscriber::fmt::layer())
+    .with(ErrorLayer::default())
     .init();
 
   let db = Database::connect(APP_ENV.database_url.as_str()).await?;
