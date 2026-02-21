@@ -175,7 +175,7 @@ export const ChatApp = () => {
                 {filteredCommands.length > 0
                   ? (
                       filteredCommands.map((item, i) => (
-                        <Box gap={2} key={i}>
+                        <Box gap={2} key={item.cmd}>
                           <Text bold={i === 0} color={i === 0 ? 'blue' : undefined}>{item.cmd}</Text>
                           <Text bold={i === 0} color={i === 0 ? 'blue' : undefined} dimColor={i !== 0}>{item.desc}</Text>
                         </Box>
