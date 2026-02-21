@@ -21,8 +21,8 @@ export const useHaru = (conversation_id: string) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialAt = useMemo(() => Temporal.Now.instant(), [conversation_id])
 
-  const messagesRef = useRef<Message[]>([])
   const [messages, setMessages] = useState<Message[]>([])
+  const messagesRef = useRef<Message[]>([])
 
   const clear = useCallback(() => {
     messagesRef.current = []
@@ -35,9 +35,11 @@ export const useHaru = (conversation_id: string) => {
   const { data: tools, isLoading: isToolsLoading } = useSWR(['haru/tools', conversation_id], async () => {
     const retrieveMemoryTool = await tool({
       description: 'Search long-term memory for relevant facts and past episodes',
-      execute: async query => retrieveMemory({ body: { conversation_id, query } }).then(res => res.data),
+      execute: async ({ query }) => retrieveMemory({ body: { conversation_id, query } }).then(res => res.data),
       name: 'retrieve_memory',
-      parameters: z.string().describe('Search query'),
+      parameters: z.object({
+        query: z.string().describe('Search query'),
+      }),
     })
     return [retrieveMemoryTool]
   }, { revalidateOnFocus: false })
@@ -92,7 +94,7 @@ export const useHaru = (conversation_id: string) => {
         tools,
       })
 
-      if (text != null)
+      if (text != null && text.trim().length !== 0)
         await pushMessage({ content: text, role: 'assistant' })
     },
   )

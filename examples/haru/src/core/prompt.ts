@@ -175,7 +175,7 @@ Don't second-guess the ranking; do surface the mismatch.
 ## Context
 
 Current time: {time}
-Session started: {session_start_time} ({elapsed_time} ago)
+Session started: {session_start_time} ({elapsed_time})
 
 ---
 
